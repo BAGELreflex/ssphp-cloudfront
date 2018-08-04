@@ -27,7 +27,7 @@ class CloudFront extends \SimpleSAML\Auth\ProcessingFilter
         $this->url = $config['url'] ?? null;
         $this->useCannedPolicy = boolval($config['useCannedPolicy'] ?? true);
         $this->useCustomPolicy = boolval($config['useCustomPolicy'] ?? false);
-        $this->cookieLifetime = intval($config['cookieLifetime']) ?? null;
+        $this->cookieLifetime = $config['cookieLifetime'] ?? null;
         $this->cookiePath = $config['cookiePath'] ?? '/';
         $this->cookieDomain = $config['cookieDomain'] ?? '';
         $this->cookieSecure = $config['cookieSecure'] ?? true;
@@ -50,7 +50,7 @@ class CloudFront extends \SimpleSAML\Auth\ProcessingFilter
 
                 // If cookie lifetime = 0 then the cookie will expire with the browser.
                 // So, the policy will be generated without an expiration time.
-                $lifetime = $this->cookieLifetime === 0 ? null : $this->cookieLifetime;
+                $lifetime = intval($this->cookieLifetime) === 0 ? null : intval($this->cookieLifetime);
 
                 $expiration = new \DateTime();
                 $expiration->add(new \DateInterval(sprintf('PT%dS', $lifetime)));
@@ -97,10 +97,18 @@ class CloudFront extends \SimpleSAML\Auth\ProcessingFilter
 
     private function setCookies($cookies, $timestamp)
     {
+        $params =
+        [
+            'path' => $this->cookiePath
+            , 'domain' => $this->cookieDomain
+            , 'secure' => $this->cookieSecure
+            , 'httponly' => $this->cookieHttpOnly
+            , 'lifetime' => $this->cookieLifetime
+        ];
+
         foreach ($cookies as $name => $value)
         {
-            setcookie($name, $value, $timestamp, $this->cookiePath,
-                $this->cookieDomain, $this->cookieSecure, $this->cookieHttpOnly);
+            \SimpleSAML\Utils\HTTP::setCookie($name, $value, $params, true);
         }
     }
 
