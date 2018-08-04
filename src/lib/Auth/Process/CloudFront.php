@@ -51,6 +51,7 @@ class CloudFront extends \SimpleSAML\Auth\ProcessingFilter
                 // If cookie lifetime = 0 then the cookie will expire with the browser.
                 // So, the policy will be generated without an expiration time.
                 $lifetime = intval($this->cookieLifetime) === 0 ? null : intval($this->cookieLifetime);
+                $this->cookieLifetime = $lifetime;
 
                 $expiration = new \DateTime();
                 $expiration->add(new \DateInterval(sprintf('PT%dS', $lifetime)));
