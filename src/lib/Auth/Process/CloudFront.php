@@ -59,7 +59,7 @@ class CloudFront extends \SimpleSAML\Auth\ProcessingFilter
 
                 $signedCookies = $cookieSigner->getSignedCookie($this->url, $timestamp, $this->getPolicy($timestamp));
 
-                $this->setCookies($signedCookies, $timestamp);
+                $this->setCookies($signedCookies);
             }
             catch (\InvalidArgumentException $ex)
             {
@@ -96,7 +96,7 @@ class CloudFront extends \SimpleSAML\Auth\ProcessingFilter
 
     }
 
-    private function setCookies($cookies, $timestamp)
+    private function setCookies($cookies)
     {
         $params =
         [
