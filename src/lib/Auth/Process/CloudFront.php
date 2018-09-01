@@ -1,7 +1,5 @@
 <?php
 
-namespace SimpleSAML\Module\cloudfront\Auth\Process;
-
 /**
  * Amazon CloudFront Authentication Processing Filter
  * 
@@ -17,7 +15,7 @@ namespace SimpleSAML\Module\cloudfront\Auth\Process;
 
 use SimpleSAML\Logger;
 
-class CloudFront extends \SimpleSAML\Auth\ProcessingFilter
+class sspmod_cloudfront_Auth_Process_CloudFront extends SimpleSAML_Auth_ProcessingFilter
 {
     /**
      * @var string The Access Key ID for an active CloudFront key pair. An AWS
@@ -194,12 +192,8 @@ class CloudFront extends \SimpleSAML\Auth\ProcessingFilter
         }
         catch (\InvalidArgumentException $ex)
         {
-            Logger::debug(sprintf('%s: cookieSigner->getSignedCookies: %s', self::MODULE_ALIAS, $timestamp));
+            Logger::debug(sprintf('%s: cookieSigner->getSignedCookies: %s', self::MODULE_ALIAS, $ex->getMessage()));
             return false;
-        }
-        finally
-        {
-            $cookieSigner = null;
         }
 
         return true;
