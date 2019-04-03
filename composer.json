@@ -21,7 +21,8 @@
     , "require":
     {
         "php": ">=7.0",
-        "aws/aws-sdk-php": "^3.64"
+        "aws/aws-sdk-php": "^3.64",
+        "simplesamlphp/composer-module-installer": "~1.0"
     }
     , "require-dev":
     {
