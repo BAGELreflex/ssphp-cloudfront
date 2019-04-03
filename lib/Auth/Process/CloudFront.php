@@ -1,5 +1,5 @@
 <?php
-namespace SimpleSAML\Module\ssphpecrs\Auth\Process;
+namespace SimpleSAML\Module\cloudfront\Auth\Process;
 
 /**
  * Amazon CloudFront Authentication Processing Filter
