@@ -1,6 +1,6 @@
 {
     "name": "BAGELreflex/ssphp-cloudfront"
-    , "type": "library"
+    , "type": "simplesamlphp-module"
     , "description": "Create AWS Cloudfront signed cookies when a SimpleSAMLphp SAML assertion is created"
     , "keywords":
     [
