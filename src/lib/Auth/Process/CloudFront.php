@@ -1,4 +1,5 @@
 <?php
+namespace SimpleSAML\Module\ssphpecrs\Auth\Process;
 
 /**
  * Amazon CloudFront Authentication Processing Filter
@@ -13,9 +14,9 @@
  * @version 1.0.0
  */
 
-use SimpleSAML\Logger;
+use \SimpleSAML\Logger;
 
-class sspmod_cloudfront_Auth_Process_CloudFront extends SimpleSAML_Auth_ProcessingFilter
+class CloudFront extends \SimpleSAML\Auth\ProcessingFilter
 {
     /**
      * @var string The Access Key ID for an active CloudFront key pair. An AWS
