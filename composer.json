@@ -1,11 +1,11 @@
 {
-    "name": "BAGELreflex/ssphp-cloudfront"
+    "name": "bagelreflex/simplesamlphp-module-cloudfront"
     , "type": "simplesamlphp-module"
     , "description": "Create AWS Cloudfront signed cookies when a SimpleSAMLphp SAML assertion is created"
     , "keywords":
     [
-        "BAGELreflex"
-        , "ssphp-cloudfront"
+        "SimpleSAMLphp",
+        "ssphp-cloudfront"
     ]
     , "homepage": "https://github.com/BAGELreflex/ssphp-cloudfront"
     , "license": "MIT"
