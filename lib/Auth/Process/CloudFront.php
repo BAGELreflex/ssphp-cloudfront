@@ -66,13 +66,17 @@ class CloudFront extends \SimpleSAML\Auth\ProcessingFilter
     private $url;
 
     /**
-     * @var boolean Indicates that the cookies should use a Canned Policy.
+     * @var boolean|null (default = true) Indicates that the cookies should
+     * use a Canned Policy. A Canned Policy requires "CloudFront-Expires",
+     * "CloudFront-Signature" and "CloudFront-Key-Pair-Id" cookies.
      * @see https://docs.aws.amazon.com/AmazonCloudFront/latest/DeveloperGuide/private-content-signed-cookies.html#private-content-choosing-canned-custom-cookies
      */
     private $useCannedPolicy;
 
     /**
-     * @var boolean|null Indicates that the cookies should use a Custom Policy.
+     * @var boolean:null (default = false) Indicates that the cookies
+     * should use a Custom Policy. A Custom Policy requires "CloudFront-Policy",
+     * "CloudFront-Signature" and "CloudFront-Key-Pair-Id" cookies.
      * @see https://docs.aws.amazon.com/AmazonCloudFront/latest/DeveloperGuide/private-content-signed-cookies.html#private-content-choosing-canned-custom-cookies
      *
      * @todo Implement custom policy support
@@ -80,52 +84,58 @@ class CloudFront extends \SimpleSAML\Auth\ProcessingFilter
     private $useCustomPolicy;
 
     /**
-     * @var integer|null The number of seconds added to date() and set as the unix timestamp
-     * for the "CloudFront-Expires" cookie. If this value is not provided the the cookies are
-     * created with the same lifetime as the user's SAML assertion cookies. If the SAML
-     * assertion does not have an expiration then DEFAULT_LIFETIME_SECONDS is used.
+     * @var integer|null (default = 86400) The number of seconds added to
+     * date() and set as the unix timestamp for the "CloudFront-Expires" cookie
+     * and the expiration time for "CloudFront-Policy" and
+     * "CloudFront-Signature" cookies. If this value is not provided then the
+     * cookies are created with the same lifetime as the user's SAML assertion.
+     * If the SAML assertion does not have an expiration then
+     * DEFAULT_LIFETIME_SECONDS is used.
+     * @see https://docs.aws.amazon.com/AmazonCloudFront/latest/DeveloperGuide/private-content-setting-signed-cookie-canned-policy.html#private-content-canned-policy-signature-cookies
+     * @see https://docs.aws.amazon.com/AmazonCloudFront/latest/DeveloperGuide/private-content-setting-signed-cookie-custom-policy.html#private-content-custom-policy-statement-cookies-procedure
      */
     private $cloudFrontExpires;
 
     /**
-     * @var string|null Indicates a URL path that must exist in the requested
+     * @var string|null (default = '/') Indicates a URL path that must exist in the requested
      * URL in order to send cookie header. This is useful if your CloudFront
      * implementation needs to provide access to multiple URLs, as cookies of
      * the same name can exist with different paths. So, we can create separate
      * instances of the cookies, using the Cookie Path as an identifier for
-     * each URL. If a path is not provided then the cookies are created using
-     * the default path of '/'.
+     * each URL.
      * @see https://stackoverflow.com/a/43769658/6654624
      * @see https://developer.mozilla.org/en-US/docs/Web/HTTP/Cookies#Scope_of_cookies
      */
     private $cookiePath;
 
     /**
-     * @var string|null Indicates the allowed hosts which can receive the
-     * cookies. If a domain is not provided the the cookie is created using the
-     * domain of the host, excluding subdomains.
+     * @var string|null (default = "Host" header) Indicates the allowed hosts
+     * which can receive the cookies.
      * @see https://developer.mozilla.org/en-US/docs/Web/HTTP/Cookies#Scope_of_cookies
      */
     private $cookieDomain;
 
     /**
-     * @var boolean|null Indicates if the cookies should only be transferred
-     * over HTTPS. If this value is not provided then the cookies are created
-     * using the secure flag.
+     * @var boolean|null (default = true) Indicates if the cookies should only
+     * be transferred over HTTPS.
      * @see https://developer.mozilla.org/en-US/docs/Web/HTTP/Cookies#Secure_and_HttpOnly_cookies
      */
     private $cookieSecure;
 
     /**
-     * @var boolean|null Indicates if the cookies should be available to
-     * JavaScript's Document.cookie API. A cookie set to HttpOnly will NOT be
-     * available to this API, to prevent cross-site scripting attacks. If this
-     * value is not provided then the cookies are created using the HttpOnly
-     * flag.
+     * @var boolean|null (default = false) Indicates if the cookies should be
+     * available to JavaScript's Document.cookie API. A cookie set to HttpOnly
+     * will NOT be available to this API, to prevent cross-site scripting
+     * attacks.
      */
     private $cookieHttpOnly;
 
+    const DEFAULT_USE_CANNED_POLICY = true;
+    const DEFAULT_USE_CUSTOM_POLICY = false;
     const DEFAULT_LIFETIME_SECONDS = 86400;
+    const DEFAULT_COOKIE_PATH = '/';
+    const DEFAULT_COOKIE_SECURE = true;
+    const DEFAULT_COOKIE_HTTP_ONLY = false;
     const MODULE_ALIAS = 'SSPHP-CloudFront';
 
     /**
@@ -148,8 +158,8 @@ class CloudFront extends \SimpleSAML\Auth\ProcessingFilter
         $this->privateKeyFile = $this->requireConfig($config, 'privateKeyFile', 'STRING');
         $this->url = $this->requireConfig($config, 'url', 'STRING');
 
-        $this->useCannedPolicy = boolval($config['useCannedPolicy'] ?? true);
-        $this->useCustomPolicy = boolval($config['useCustomPolicy'] ?? false);
+        $this->useCannedPolicy = boolval($config['useCannedPolicy'] ?? self::DEFAULT_USE_CANNED_POLICY);
+        $this->useCustomPolicy = boolval($config['useCustomPolicy'] ?? self::DEFAULT_USE_CUSTOM_POLICY);
 
         $cloudFrontExpiresDateTime = new \DateTime();
         $cloudFrontExpiresDateTime->add(
@@ -160,10 +170,10 @@ class CloudFront extends \SimpleSAML\Auth\ProcessingFilter
         );
         $this->cloudFrontExpires = $cloudFrontExpiresDateTime->getTimestamp();
 
-        $this->cookiePath = $config['cookiePath'] ?? '/';
-        $this->cookieDomain = $config['cookieDomain'] ?? '';
-        $this->cookieSecure = $config['cookieSecure'] ?? true;
-        $this->cookieHttpOnly = $config['cookieHttpOnly'] ?? true;
+        $this->cookiePath = $config['cookiePath'] ?? self::DEFAULT_COOKIE_PATH;
+        $this->cookieDomain = $config['cookieDomain'] ?? apache_request_headers()['Host'] ?? '';
+        $this->cookieSecure = $config['cookieSecure'] ?? self::DEFAULT_COOKIE_SECURE;
+        $this->cookieHttpOnly = $config['cookieHttpOnly'] ?? self::DEFAULT_COOKIE_HTTP_ONLY;
     }
 
     /**
