@@ -52,6 +52,10 @@ class CloudFront extends \SimpleSAML\Auth\ProcessingFilter
      */
     private $privateKeyBase64;
 
+    private $profile;
+    private $version;
+    private $region;
+
     /**
      * @var string The base URL, including your query strings (if any), to the
      * CloudFront resource(s) for which the cookies should be authorized.
@@ -68,13 +72,15 @@ class CloudFront extends \SimpleSAML\Auth\ProcessingFilter
     /**
      * @var boolean|null (default = true) Indicates that the cookies should
      * use a Canned Policy. A Canned Policy requires "CloudFront-Expires",
-     * "CloudFront-Signature" and "CloudFront-Key-Pair-Id" cookies.
+     * "CloudFront-Signature" and "CloudFront-Key-Pair-Id" cookies. If
+     * useCustomPolicy is set to true then it will always be used instead of
+     * useCannedPolicy.
      * @see https://docs.aws.amazon.com/AmazonCloudFront/latest/DeveloperGuide/private-content-signed-cookies.html#private-content-choosing-canned-custom-cookies
      */
     private $useCannedPolicy;
 
     /**
-     * @var boolean:null (default = false) Indicates that the cookies
+     * @var boolean|null (default = false) Indicates that the cookies
      * should use a Custom Policy. A Custom Policy requires "CloudFront-Policy",
      * "CloudFront-Signature" and "CloudFront-Key-Pair-Id" cookies.
      * @see https://docs.aws.amazon.com/AmazonCloudFront/latest/DeveloperGuide/private-content-signed-cookies.html#private-content-choosing-canned-custom-cookies
@@ -85,7 +91,7 @@ class CloudFront extends \SimpleSAML\Auth\ProcessingFilter
 
     /**
      * @var integer|null (default = 86400) The number of seconds added to
-     * date() and set as the unix timestamp for the "CloudFront-Expires" cookie
+     * time() and set as the unix timestamp for the "CloudFront-Expires" cookie
      * and the expiration time for "CloudFront-Policy" and
      * "CloudFront-Signature" cookies. If this value is not provided then the
      * cookies are created with the same lifetime as the user's SAML assertion.
@@ -130,6 +136,8 @@ class CloudFront extends \SimpleSAML\Auth\ProcessingFilter
      */
     private $cookieHttpOnly;
 
+    const DEFAULT_VERSION = '2018-11-05';
+    const DEFAULT_REGION = 'us-east-1';
     const DEFAULT_USE_CANNED_POLICY = true;
     const DEFAULT_USE_CUSTOM_POLICY = false;
     const DEFAULT_LIFETIME_SECONDS = 86400;
@@ -158,8 +166,12 @@ class CloudFront extends \SimpleSAML\Auth\ProcessingFilter
         $this->privateKeyFile = $this->requireConfig($config, 'privateKeyFile', 'STRING');
         $this->url = $this->requireConfig($config, 'url', 'STRING');
 
-        $this->useCannedPolicy = boolval($config['useCannedPolicy'] ?? self::DEFAULT_USE_CANNED_POLICY);
+        $this->profile = $config['profile'] ?? '';
+        $this->version = $config['version'] ?? self::DEFAULT_VERSION;
+        $this->region = $config['region'] ?? self::DEFAULT_REGION;
+
         $this->useCustomPolicy = boolval($config['useCustomPolicy'] ?? self::DEFAULT_USE_CUSTOM_POLICY);
+        $this->useCannedPolicy = $this->useCustomPolicy ? false : boolval($config['useCannedPolicy'] ?? self::DEFAULT_USE_CANNED_POLICY);
 
         $cloudFrontExpiresDateTime = new \DateTime();
         $cloudFrontExpiresDateTime->add(
@@ -188,10 +200,20 @@ class CloudFront extends \SimpleSAML\Auth\ProcessingFilter
 
         try
         {
-            $policy = $this->getPolicy($this->cloudFrontExpires);
-            Logger::debug(sprintf('%s: policy: %s', self::MODULE_ALIAS, print_r($policy, 1)));
+            $cloudFrontClient = new \Aws\CloudFront\CloudFrontClient([
+                'version' => $this->version
+                , 'region' => $this->region
+            ]);
 
-            $this->setCookies($cookieSigner->getSignedCookie($this->url, $this->cloudFrontExpires, $policy));
+            if ($this->useCannedPolicy)
+            {
+                $this->setCookies($this->getCannedPolicyCookies($cloudFrontClient));
+            }
+
+            if ($this->useCustomPolicy)
+            {
+                $this->setCookies($this->getCustomPolicyCookies($cloudFrontClient));
+            }
         }
         catch (\InvalidArgumentException $ex)
         {
@@ -202,26 +224,37 @@ class CloudFront extends \SimpleSAML\Auth\ProcessingFilter
         return true;
     }
 
-    private function getPolicy($cloudFrontExpires)
+    private function getCannedPolicyCookies($cloudFrontClient)
     {
-        return $this->useCannedPolicy ? $this->getCannedPolicy($cloudFrontExpires) : $this->getCustomPolicy($cloudFrontExpires);
+        $cookies = $cloudFrontClient->getSignedCookie([
+            'url' => $this->url
+            , 'expires' => $this->cloudFrontExpires
+            , 'private_key' => $this->privateKeyFile
+            , 'key_pair_id' => $this->keyPairId
+        ]);
+
+        Logger::debug(sprintf('%s: canned_policy_cookies: %s', self::MODULE_ALIAS, print_r($cookies, 1)));
+
+        return $cookies;
     }
 
-    private function getCannedPolicy($cloudFrontExpires)
+    private function getCustomPolicyCookies($cloudFrontClient)
     {
-        $policy = ['Statement' => [['Resource' => $this->url]]];
+        $customPolicy = json_encode(
+            ['Statement' => [['Resource' => $this->url, 'Condition' => ['DateLessThan' => ['AWS:EpochTime' => $this->cloudFrontExpires]]]]]
+            , JSON_UNESCAPED_SLASHES
+        );
 
-        if (!is_null($cloudFrontExpires))
-        {
-            $policy['Statement'][0]['Condition'] = ['DateLessThan' => ['AWS:EpochTime' => $cloudFrontExpires]];
-        }
+        $cookies = $cloudFrontClient->getSignedCookie([
+            'policy' => $customPolicy
+            , 'private_key' => $this->privateKeyFile
+            , 'key_pair_id' => $this->keyPairId
+        ]);
+        
+        Logger::debug(sprintf('%s: custom_policy: %s', self::MODULE_ALIAS, print_r($customPolicy, 1)));
+        Logger::debug(sprintf('%s: custom_policy_cookies: %s', self::MODULE_ALIAS, print_r($cookies, 1)));
 
-        return json_encode($policy, JSON_UNESCAPED_SLASHES);
-    }
-
-    private function getCustomPolicy($cloudFrontExpires)
-    {
-
+        return $cookies;
     }
 
     private function setCookies($cookies)
