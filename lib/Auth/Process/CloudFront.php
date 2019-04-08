@@ -196,8 +196,6 @@ class CloudFront extends \SimpleSAML\Auth\ProcessingFilter
      */
     public function process(&$request)
     {
-        $cookieSigner = new \Aws\CloudFront\CookieSigner($this->keyPairId, $this->privateKeyFile);
-
         try
         {
             $cloudFrontClient = new \Aws\CloudFront\CloudFrontClient([
@@ -217,7 +215,7 @@ class CloudFront extends \SimpleSAML\Auth\ProcessingFilter
         }
         catch (\InvalidArgumentException $ex)
         {
-            Logger::debug(sprintf('%s: cookieSigner->getSignedCookies: %s', self::MODULE_ALIAS, $ex->getMessage()));
+            Logger::debug(sprintf('%s: getCookies: %s', self::MODULE_ALIAS, $ex->getMessage()));
             return false;
         }
 
@@ -250,7 +248,7 @@ class CloudFront extends \SimpleSAML\Auth\ProcessingFilter
             , 'private_key' => $this->privateKeyFile
             , 'key_pair_id' => $this->keyPairId
         ]);
-        
+
         Logger::debug(sprintf('%s: custom_policy: %s', self::MODULE_ALIAS, print_r($customPolicy, 1)));
         Logger::debug(sprintf('%s: custom_policy_cookies: %s', self::MODULE_ALIAS, print_r($cookies, 1)));
 
@@ -271,7 +269,7 @@ class CloudFront extends \SimpleSAML\Auth\ProcessingFilter
         foreach ($cookies as $name => $value)
         {
             Logger::debug(sprintf("%s: Setting cookie '%s = %s'", self::MODULE_ALIAS, $name, $value));
-            \SimpleSAML\Utils\HTTP::setCookie($name, $value, $params, true);
+            \SimpleSAML\Utils\HTTP::setCookie(strval($name), strval($value), $params, true);
         }
     }
 
@@ -345,3 +343,4 @@ class CloudFront extends \SimpleSAML\Auth\ProcessingFilter
 }
 
 ?>
+
